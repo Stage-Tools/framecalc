@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameCalc — MS / Frame Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #0a0c0e;
+    --bg-1: #12161a;
+    --bg-2: #1a1f24;
+    --bg-3: #242a30;
+    --line: #2a3138;
+    --line-hot: #3a4148;
+    --ink: #e8eaed;
+    --ink-dim: #8a939c;
+    --ink-faint: #4a525a;
+    --accent: #ff8c1a;
+    --accent-dim: #b0621a;
+    --good: #3ac569;
+    --warn: #e8c547;
+    --shadow: 0 2px 0 #000, 0 10px 30px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-0);
+    color: var(--ink);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at top, rgba(255,140,26,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, rgba(58,65,72,0.15) 0%, transparent 50%),
+      var(--bg-0);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+  }
+
+  /* Subtle grain overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image:
+      repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay;
+    z-index: 1;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- HEADER ---------- */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(255,140,26,0.6);
+    transform: translateY(-2px);
+  }
+
+  .brand-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .brand-name span { color: var(--accent); }
+
+  .brand-tag {
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    padding-bottom: 2px;
+  }
+
+  .version {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+  }
+
+  /* ---------- FRAMERATE BAR ---------- */
+  .rate-bar {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .rate-label {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rate-label::before {
+    content: "";
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .rate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+  }
+
+  .rate-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 10px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    position: relative;
+  }
+
+  .rate-btn:hover {
+    background: var(--bg-3);
+    border-color: var(--line-hot);
+    color: var(--ink);
+  }
+
+  .rate-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-0);
+    font-weight: bold;
+    box-shadow: 0 0 14px rgba(255,140,26,0.35);
+  }
+
+  .rate-btn .fps-num {
+    display: block;
+    font-size: 16px;
+    line-height: 1.1;
+  }
+
+  .rate-btn .fps-note {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+
+  /* ---------- CUSTOM FPS ---------- */
+  .custom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .custom-row label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .custom-row input {
+    flex: 1;
+    max-width: 140px;
+    background: var(--bg-0);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 6px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+  }
+
+  .custom-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* ---------- CONVERTER ---------- */
+  .converter {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 720px) {
+    .converter {
+      grid-template-columns: 1fr;
+    }
+    .arrow { display: none; }
+  }
+
+  .field {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field-title {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .field-unit {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 2px 8px;
+  }
+
+  .field input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 32px;
+    letter-spacing: 0.05em;
+    padding: 8px 0;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+  }
+
+  .field input::placeholder {
+    color: var(--ink-faint);
+  }
+
+  .field-readout {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    min-height: 16px;
+  }
+
+  .field-readout strong {
+    color: var(--ink);
+    font-weight: normal;
+  }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    padding: 0 8px;
+    user-select: none;
+  }
+
+  /* ---------- INFO PANEL ---------- */
+  .info {
+    margin-top: 20px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .info-title {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px 24px;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px dotted var(--line);
+    padding-bottom: 4px;
+  }
+
+  .info-row .k {
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .info-row .v {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  footer .made {
+    color: var(--ink-dim);
+  }
+
+  footer .made span { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Frame<span>Calc</span></div>
+      <div class="brand-tag">MS / Frame Converter</div>
+    </div>
+    <div class="version">v0.1.0</div>
+  </header>
+
+  <!-- FRAMERATE SELECTION -->
+  <section class="rate-bar">
+    <div class="rate-label">Framerate</div>
+    <div class="rate-grid" id="rateGrid"></div>
+    <div class="custom-row">
+      <label for="customFps">Custom</label>
+      <input type="number" id="customFps" step="0.001" min="0.001" placeholder="e.g. 48.000">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--ink-faint);letter-spacing:0.15em;">FPS</span>
+    </div>
+  </section>
+
+  <!-- CONVERTER -->
+  <section class="converter">
+    <div class="field">
+      <div class="field-header">
+        <div class="field-title">Milliseconds</div>
+        <div class="field-unit">MS</div>
+      </div>
+      <input type="number" id="msInput" step="any" placeholder="0.000">
+      <div class="field-readout" id="msReadout">&nbsp;</div>
+    </div>
+
+    <div class="arrow">⇌</div>
+
+    <div class="field">
+      <div class="field-header">
+        <div class="field-title">Frames</div>
+        <div class="field-unit">FR</div>
+      </div>
+      <input type="number" id="frInput" step="any" placeholder="0">
+      <div class="field-readout" id="frReadout">&nbsp;</div>
+    </div>
+  </section>
+
+  <!-- INFO PANEL -->
+  <section class="info">
+    <div class="info-title">Reference</div>
+    <div class="info-grid">
+      <div class="info-row"><span class="k">Active FPS</span><span class="v" id="refFps">—</span></div>
+      <div class="info-row"><span class="k">1 Frame</span><span class="v" id="refOneFrame">—</span></div>
+      <div class="info-row"><span class="k">1 Second</span><span class="v" id="refOneSec">—</span></div>
+      <div class="info-row"><span class="k">Timecode</span><span class="v" id="refTc">—</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="made">Made by <span>Riccardo Nessi</span></div>
+    <div>FRAMECALC · 2026</div>
+  </footer>
+</div>
+
+<script>
+  // ---------- DATA ----------
+  const PRESETS = [
+    { fps: 23.976, label: '23.976', note: 'FILM NDF' },
+    { fps: 24,     label: '24',     note: 'FILM' },
+    { fps: 25,     label: '25',     note: 'PAL' },
+    { fps: 29.97,  label: '29.97',  note: 'NTSC NDF' },
+    { fps: 30,     label: '30',     note: 'NTSC' },
+    { fps: 48,     label: '48',     note: 'HFR' },
+    { fps: 50,     label: '50',     note: 'PAL HFR' },
+    { fps: 59.94,  label: '59.94',  note: 'NTSC HFR' },
+    { fps: 60,     label: '60',     note: 'HFR' },
+  ];
+
+  const DEFAULT_FPS = 25;
+  const STORAGE_KEY = 'framecalc.fps';
+
+  // ---------- STATE ----------
+  let currentFps = DEFAULT_FPS;
+  let lastEdited = 'ms'; // which side was edited last
+
+  // ---------- ELEMENTS ----------
+  const rateGrid   = document.getElementById('rateGrid');
+  const customFps  = document.getElementById('customFps');
+  const msInput    = document.getElementById('msInput');
+  const frInput    = document.getElementById('frInput');
+  const msReadout  = document.getElementById('msReadout');
+  const frReadout  = document.getElementById('frReadout');
+  const refFps     = document.getElementById('refFps');
+  const refOneFrame= document.getElementById('refOneFrame');
+  const refOneSec  = document.getElementById('refOneSec');
+  const refTc      = document.getElementById('refTc');
+
+  // ---------- BUILD FPS BUTTONS ----------
+  PRESETS.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'rate-btn';
+    btn.dataset.fps = p.fps;
+    btn.innerHTML = `<span class="fps-num">${p.label}</span><span class="fps-note">${p.note}</span>`;
+    btn.addEventListener('click', () => setFps(p.fps, true));
+    rateGrid.appendChild(btn);
+  });
+
+  // ---------- CORE CONVERSIONS ----------
+  function msToFrames(ms, fps) {
+    return (ms / 1000) * fps;
+  }
+  function framesToMs(fr, fps) {
+    return (fr / fps) * 1000;
+  }
+
+  // Pretty number formatting
+  function fmt(n, decimals = 3) {
+    if (!isFinite(n)) return '—';
+    return Number(n.toFixed(decimals)).toString();
+  }
+
+  // Frames → HH:MM:SS:FF timecode (non-drop, rounded)
+  function toTimecode(totalFrames, fps) {
+    if (!isFinite(totalFrames) || totalFrames < 0) return '—';
+    const fpsInt = Math.round(fps);
+    const tf = Math.floor(totalFrames);
+    const ff = tf % fpsInt;
+    const totalSec = Math.floor(tf / fpsInt);
+    const ss = totalSec % 60;
+    const mm = Math.floor(totalSec / 60) % 60;
+    const hh = Math.floor(totalSec / 3600);
+    const pad = v => String(v).padStart(2, '0');
+    return `${pad(hh)}:${pad(mm)}:${pad(ss)}:${pad(ff)}`;
+  }
+
+  // ---------- FPS MANAGEMENT ----------
+  function setFps(fps, fromPreset = false) {
+    currentFps = Number(fps);
+    if (!isFinite(currentFps) || currentFps <= 0) return;
+
+    // Update preset buttons
+    document.querySelectorAll('.rate-btn').forEach(btn => {
+      btn.classList.toggle('active', Number(btn.dataset.fps) === currentFps);
+    });
+
+    // If it was a preset click, clear the custom field
+    if (fromPreset) {
+      customFps.value = '';
+    }
+
+    localStorage.setItem(STORAGE_KEY, String(currentFps));
+    recomputeFromLast();
+    updateReference();
+  }
+
+  // ---------- INPUT HANDLERS ----------
+  msInput.addEventListener('input', () => {
+    lastEdited = 'ms';
+    const ms = parseFloat(msInput.value);
+    if (isNaN(ms)) {
+      frInput.value = '';
+      msReadout.innerHTML = '&nbsp;';
+      frReadout.innerHTML = '&nbsp;';
+      return;
+    }
+    const frames = msToFrames(ms, currentFps);
+    frInput.value = fmt(frames, 4);
+    updateReadouts(ms, frames);
+  });
+
+  frInput.addEventListener('input', () => {
+    lastEdited = 'fr';
+    const fr = parseFloat(frInput.value);
+    if (isNaN(fr)) {
+      msInput.value = '';
+      msReadout.innerHTML = '&nbsp;';
+      frReadout.innerHTML = '&nbsp;';
+      return;
+    }
+    const ms = framesToMs(fr, currentFps);
+    msInput.value = fmt(ms, 4);
+    updateReadouts(ms, fr);
+  });
+
+  customFps.addEventListener('input', () => {
+    const v = parseFloat(customFps.value);
+    if (!isNaN(v) && v > 0) {
+      setFps(v, false);
+    }
+  });
+
+  function recomputeFromLast() {
+    if (lastEdited === 'ms') {
+      const ms = parseFloat(msInput.value);
+      if (!isNaN(ms)) {
+        const frames = msToFrames(ms, currentFps);
+        frInput.value = fmt(frames, 4);
+        updateReadouts(ms, frames);
+      }
+    } else {
+      const fr = parseFloat(frInput.value);
+      if (!isNaN(fr)) {
+        const ms = framesToMs(fr, currentFps);
+        msInput.value = fmt(ms, 4);
+        updateReadouts(ms, fr);
+      }
+    }
+  }
+
+  function updateReadouts(ms, frames) {
+    const sec = ms / 1000;
+    const wholeFrames = Math.floor(frames);
+    const fracFrames  = frames - wholeFrames;
+    msReadout.innerHTML = `≈ <strong>${fmt(sec, 6)}</strong> seconds`;
+    frReadout.innerHTML = `≈ <strong>${wholeFrames}</strong> frames + <strong>${fmt(fracFrames, 4)}</strong>`;
+  }
+
+  function updateReference() {
+    const oneFrame = 1000 / currentFps;
+    refFps.textContent = fmt(currentFps, 3) + ' fps';
+    refOneFrame.textContent = fmt(oneFrame, 4) + ' ms';
+    refOneSec.textContent = fmt(currentFps, 3) + ' fr';
+
+    // Timecode preview of current ms value (if any)
+    const ms = parseFloat(msInput.value);
+    if (!isNaN(ms)) {
+      const frames = msToFrames(ms, currentFps);
+      refTc.textContent = toTimecode(frames, currentFps);
+    } else {
+      refTc.textContent = '—';
+    }
+  }
+
+  // Keep timecode live while typing
+  msInput.addEventListener('input', updateReference);
+  frInput.addEventListener('input', updateReference);
+
+  // ---------- INIT ----------
+  (function init() {
+    const saved = parseFloat(localStorage.getItem(STORAGE_KEY));
+    const startFps = (saved && saved > 0) ? saved : DEFAULT_FPS;
+
+    // If saved fps matches a preset, activate it; otherwise use as custom
+    const matchesPreset = PRESETS.some(p => p.fps === startFps);
+    if (matchesPreset) {
+      setFps(startFps, true);
+    } else {
+      customFps.value = startFps;
+      setFps(startFps, false);
+    }
+    updateReference();
+  })();
+</script>
+</body>
+</html>
